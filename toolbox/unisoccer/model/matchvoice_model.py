@@ -4,7 +4,7 @@ from torch import nn
 import einops
 import contextlib
 import sys, os
-sys.path.append('YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE/pipeline/toolbox/unisoccer')
+sys.path.append('/home/zhaosiyao/SoccerAgent/toolbox/unisoccer')
 from model.matchvoice_Qformer import BertConfig, BertLMHeadModel
 from transformers.generation.logits_process import LogitsProcessor, LogitsProcessorList
 from typing import List
@@ -44,7 +44,7 @@ class matchvoice_model(nn.Module):
                  num_query_tokens = 32,
                  num_video_query_token = 32,
                  num_features = 512,
-                 device = "cuda:0",
+                 device = "cuda",
                  inference = False,
                  file_path = './words_world/merge.pkl',
                  need_temporal = True,
@@ -105,7 +105,7 @@ class matchvoice_model(nn.Module):
 
     @classmethod
     def init_video_Qformer(cls, num_query_token, vision_width, num_hidden_layers =2):
-        encoder_config = BertConfig.from_pretrained("YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE/pipeline/toolbox/unisoccer/checkpoint/bert-base-uncased")
+        encoder_config = BertConfig.from_pretrained("/data/zhaosiyao/gmanlc/pretrained_model/google-bert-bert-base-uncased/")
         encoder_config.num_hidden_layers = num_hidden_layers
         encoder_config.encoder_width = vision_width
         # insert cross-attention layer every other block
@@ -119,7 +119,7 @@ class matchvoice_model(nn.Module):
         query_tokens.data.normal_(mean=0.0, std=encoder_config.initializer_range)
         return Qformer, query_tokens
 
-    
+
     def maybe_autocast(self, dtype=torch.float16):
         enable_autocast = self.device != torch.device("cpu")
         if enable_autocast:
@@ -153,7 +153,7 @@ class matchvoice_model(nn.Module):
             frame_position_embeddings = self.video_frame_position_embedding(position_ids)
             frame_position_embeddings = frame_position_embeddings.unsqueeze(-2)
         frame_hidden_state = einops.rearrange(video_features, '(b t) n f -> b t n f',b=batch_size,t=time_length)
-        
+
         if self.need_temporal == "yes":
             frame_hidden_state = frame_position_embeddings + frame_hidden_state
 
@@ -178,7 +178,7 @@ class matchvoice_model(nn.Module):
             anonymized = samples["caption_text"]
             # anonymized = [sublist[3] for sublist in samples["caption_info"]]
             return temp_res_text, anonymized
-        
+
         visual_label = torch.full((batch_size, self.num_video_query_token), -100, dtype=targets.dtype)
         concat_targets = torch.cat((visual_label, targets), dim=1).to(self.device)
         temp_input_ids = inputs_ids.clone().to(self.device)
@@ -186,7 +186,7 @@ class matchvoice_model(nn.Module):
         embedding_cat = torch.cat((inputs_llama, targets_embeds), dim=1)
         mask_prefix = torch.ones(batch_size, self.num_video_query_token, dtype=atts_llama.dtype)
         mask = torch.concat((mask_prefix, atts_llama), dim=1).to(self.device)
-    
+
         original_stdout = sys.stdout
         sys.stdout = io.StringIO()
         with self.maybe_autocast():
@@ -199,7 +199,7 @@ class matchvoice_model(nn.Module):
         sys.stdout = original_stdout
         loss = outputs.loss
         return loss
-    
+
     def generate_text(self, inputs_llama):
         start_embeds = self.llama_model.model.embed_tokens(torch.tensor([128000]).to(self.device))
         inputs_llama_with_s = torch.cat([inputs_llama, start_embeds.expand(inputs_llama.size(0), -1, -1)], dim=1).to(dtype=torch.bfloat16)

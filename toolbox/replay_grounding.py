@@ -6,7 +6,7 @@ from PIL import Image
 import cv2
 import os
 
-PROJECT_PATH = "YOUR_PROJECT_PATH"  # Replace with your actual project path
+PROJECT_PATH = "/home/zhaosiyao/SoccerAgent"  # Replace with your actual project path
 
 import subprocess
 def compress_video(input_video_path, output_video_path, target_width=224, target_height=400, target_fps=1, codec="libx264"):
@@ -23,7 +23,7 @@ def compress_video(input_video_path, output_video_path, target_width=224, target
         "-y",  # overwrite output file without asking
         output_video_path  # output video path
     ]
-    
+
     subprocess.run(command, check=True)
 
 
@@ -38,7 +38,7 @@ def chat_video(input_text, Instruction, video_path, model=vlm_model, processor=v
     for i in range(len(video_path)):
         conversation[1]["content"].append(
             {
-                "type": "video", 
+                "type": "video",
                 "video": "file://" + video_path[i],
                 "max_pixels": 224 * 400,
                 "fps": 1.0,
@@ -57,7 +57,7 @@ def chat_video(input_text, Instruction, video_path, model=vlm_model, processor=v
         videos=video_inputs,
         padding=True,
         return_tensors="pt",
-    ).to(model.device)
+    ).to("cuda")
 
     try:
         output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
@@ -73,11 +73,11 @@ def chat_video(input_text, Instruction, video_path, model=vlm_model, processor=v
         print("CUDA memory overflow detected. Compressing video and retrying...")
         compressed_video_paths = []
         for i, video in enumerate(video_path):
-            compressed_video_path = f"HELPER_FILE/{i}.mp4" # Replace with your temporary path for compressed video
+            compressed_video_path = f"/home/zhaosiyao/SoccerAgent/cache/replay_grounding/{i}.mp4" # Replace with your temporary path for compressed video
             os.makedirs(os.path.dirname(compressed_video_path), exist_ok=True)
             compress_video(video, compressed_video_path, target_width=168, target_height=300, target_fps=0.5)
             compressed_video_paths.append(compressed_video_path)
-        
+
         conversation[1]["content"] = []
         for i in range(len(compressed_video_paths)):
             conversation[1]["content"].append(
@@ -89,7 +89,7 @@ def chat_video(input_text, Instruction, video_path, model=vlm_model, processor=v
                 }
             )
         conversation[1]["content"].append({"type": "text", "text": input_text})
-        
+
         text = processor.apply_chat_template(conversation, tokenize=False, add_generation_prompt=True)
         image_inputs, video_inputs = process_vision_info(conversation)
 
@@ -99,7 +99,7 @@ def chat_video(input_text, Instruction, video_path, model=vlm_model, processor=v
             videos=video_inputs,
             padding=True,
             return_tensors="pt",
-        ).to(model.device)
+        ).to("cuda")
 
         output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
         generated_ids_trimmed = [

@@ -2,7 +2,7 @@ from PIL import Image
 import requests
 from transformers import AutoProcessor, SiglipVisionModel
 import sys
-sys.path.append('YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE/pipeline/toolbox/unisoccer')
+sys.path.append('/home/zhaosiyao/SoccerAgent/toolbox/unisoccer')
 import torch
 import torch.nn as nn
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
@@ -38,14 +38,14 @@ class ResidualAttentionBlock(nn.Module):
 
     def attention(self, x):
         return self.attn(x)[0]
-    
+
     def temporal_attention(self, x):
         return self.temporal_attn(x, x, x)[0]
 
     def forward(self, x, B, T):
-        # divided_space_time 
+        # divided_space_time
 
-        ## Temporal 
+        ## Temporal
         xt = rearrange(x, '(b t) n m -> (b n) t m', b=B, t=T)
         res_temporal = self.drop_path(self.temporal_attention(self.temporal_norm1(xt)))
         res_temporal = rearrange(res_temporal, '(b n) t m -> (b t) n m', b=B, t=T)
@@ -55,9 +55,9 @@ class ResidualAttentionBlock(nn.Module):
         ## Spatial
         xs = xt # always 180 196 768
         res_spatial = self.encoder(xs, self.attn_mask)[0]
-        
+
         return res_spatial
-    
+
 
 class Timesformer(nn.Module):
     def __init__(self, width, layers, heads, model_name, drop_path=0., checkpoint_num=0, dropout=0.):
@@ -67,7 +67,7 @@ class Timesformer(nn.Module):
         for idx in range(layers):
             self.resblocks.append(ResidualAttentionBlock(d_model=width, n_head=heads, res_idx=idx, drop_path=dpr[idx], dropout=dropout, model_name=model_name))
         self.checkpoint_num = checkpoint_num
-            
+
     def forward(self, x, B, T):
         for idx, blk in enumerate(self.resblocks):
             if idx < self.checkpoint_num:
@@ -79,7 +79,7 @@ class Timesformer(nn.Module):
 
 class VisionTimesformer(nn.Module):
     def __init__(
-        self, output_dim=768, num_frames=30, 
+        self, output_dim=768, num_frames=30,
         input_resolution = 224, patch_size = 16, width = 768,
         layers=12, heads=12,
         encoder_type = "spatial_and_temporal",
@@ -89,13 +89,13 @@ class VisionTimesformer(nn.Module):
 
         self.num_frames = num_frames
         model = SiglipVisionModel.from_pretrained(model_name)
-        
+
         self.output_dim = output_dim
         self.input_resolution = input_resolution
         self.encoder_type = encoder_type
         self.patch_size = patch_size
         self.width = width
-        
+
         if self.encoder_type == "spatial_only":
             self.vision_model = model
 
@@ -113,7 +113,7 @@ class VisionTimesformer(nn.Module):
         return len(self.timesformer.resblocks)
 
     @torch.jit.ignore
-    def no_weight_decay(self):   
+    def no_weight_decay(self):
         return {'temporal_positional_embedding'}
 
     def forward(self, x):
@@ -135,7 +135,7 @@ class VisionTimesformer(nn.Module):
             x = rearrange(x, "(b t) m -> b t m", b=B, t=T) # 6 30 768
 
         return x
-    
+
 
 class TextEncoder(nn.Module):
     def __init__(

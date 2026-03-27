@@ -1,5 +1,5 @@
 import sys
-sys.path.append('YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE/pipeline/toolbox/unisoccer')
+sys.path.append('/home/zhaosiyao/SoccerAgent/toolbox/unisoccer')
 import torch
 import torch.nn as nn
 # from model.MatchVision_from_siglip import VisionTimesformer
@@ -13,12 +13,12 @@ class MatchVision_Classifier(nn.Module):
                  vision_encoder_type = "spatial_and_temporal", use_transformer = True,
                  model_name = "google/siglip-base-patch16-224"):
         super(MatchVision_Classifier, self).__init__()
-        
+
         if keywords is None:
             self.keywords = ["var", "end of half game", "clearance", "second yellow card", "injury", "ball possession", "throw in", "show added time", "shot off target", "start of half game", "substitution", "saved by goal-keeper", "red card", "lead to corner", "ball out of play", "off side", "goal", "penalty", "yellow card", "foul lead to penalty", "corner", "free kick", "foul with no card"]
         else:
             self.keywords = keywords
-        
+
         self.siglip_model = VisionTimesformer(patch_size=16, model_name=model_name, width=768, layers=12, heads=12, output_dim=feature_dim, input_resolution=224,encoder_type=vision_encoder_type)
         self.classifier_ln1 = nn.LayerNorm(feature_dim)
         self.classifier_ln2 = nn.LayerNorm(feature_dim)
@@ -47,7 +47,7 @@ class MatchVision_Classifier(nn.Module):
         # print(logits.shape)
         loss = F.cross_entropy(logits, targets)  # Calculate the Cross Entropy Loss here
         return loss, logits
-    
+
     def get_logits(self, x):
         B, _, _, _, _ = x.shape
         x = self.siglip_model(x)
@@ -61,7 +61,7 @@ class MatchVision_Classifier(nn.Module):
             x = x.permute(1, 0, 2)
             x = self.transformer_encoder(x)
             if self.classifier_transformer_type == "cls_token":
-                x = x[0, :, :] 
+                x = x[0, :, :]
             elif self.classifier_transformer_type == "avg_pool":
                 x = x.mean(dim=0)
         else:
@@ -70,7 +70,7 @@ class MatchVision_Classifier(nn.Module):
         x = self.classifier_ln2(x)
         logits = self.classifier(x)
         return logits
-    
+
     def get_types(self, logits):
         _, top_indices = torch.topk(logits, k=5, dim=1, largest=True, sorted=True)
         return top_indices
@@ -85,7 +85,7 @@ class MatchVision_Classifier(nn.Module):
         x = self.transformer_encoder(x)
         x = rearrange(x, "t b m -> b t m")
         return x
-    
+
     def get_feature_without_cls(self, x):
         B, _, _, _, _ = x.shape
         x = self.siglip_model(x)
@@ -95,7 +95,7 @@ class MatchVision_Classifier(nn.Module):
         x = self.classifier_ln2(x)
         x = rearrange(x, "t b m -> b t m")
         return x
-    
+
     def get_feature_before_transformer(self, x):
         B, _, _, _, _ = x.shape
         x = self.siglip_model(x)

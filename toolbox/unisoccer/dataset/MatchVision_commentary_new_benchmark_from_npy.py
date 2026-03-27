@@ -1,5 +1,5 @@
 import sys, os
-sys.path.append('YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE/pipeline/toolbox/unisoccer')
+sys.path.append('/home/zhaosiyao/SoccerAgent/toolbox/unisoccer')
 import torch
 import json
 from einops import rearrange
@@ -14,7 +14,7 @@ import random
 IGNORE_INDEX = -100
 
 class MatchVisionCommentary_new_benchmark_from_npy_Dataset(Dataset):
-    def __init__(self, json_file, video_base_dir, 
+    def __init__(self, json_file, video_base_dir,
                  num_frames=30, sample='middle', fix_start=None, max_num_frames=-1, trimmed30=False,
                  tokenizer_name = 'Meta-Llama-3-8B-Instruct', max_token_length =128
                  ):
@@ -48,10 +48,10 @@ class MatchVisionCommentary_new_benchmark_from_npy_Dataset(Dataset):
                         # print(item["video"])
                     self.data.extend(current_data)
                     print(f"File loaded: {json_file[i]}")
-    
+
     def __len__(self):
         return len(self.data)
-    
+
     def __getitem__(self, idx):
         video_info = self.data[idx]
         if not self.multiple_json:
@@ -60,7 +60,7 @@ class MatchVisionCommentary_new_benchmark_from_npy_Dataset(Dataset):
             video_path = video_info['video']
 
         frames, frame_indices, duration = read_frames_decord(
-            video_path, self.num_frames, self.sample, self.fix_start, 
+            video_path, self.num_frames, self.sample, self.fix_start,
             self.max_num_frames, self.trimmed30
         )
         frames = torch.cat([self.transform(images=frame, return_tensors="pt")["pixel_values"] for frame in frames], dim=0)
@@ -81,7 +81,7 @@ class MatchVisionCommentary_new_benchmark_from_npy_Dataset(Dataset):
             "caption_text": caption,
             "video_path": video_path
         }
-    
+
     def collater(self, instances):
         input_ids = [
             torch.cat((torch.tensor([self.tokenizer.convert_tokens_to_ids("<|begin_of_text|>")]),
@@ -96,7 +96,7 @@ class MatchVisionCommentary_new_benchmark_from_npy_Dataset(Dataset):
             labels,
             batch_first=True,
             padding_value=IGNORE_INDEX)
-        
+
         batch = dict(
             input_ids=input_ids,
             attention_mask=input_ids.ne(self.tokenizer.convert_tokens_to_ids("<|end_of_text|>")),

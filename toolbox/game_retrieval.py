@@ -5,27 +5,28 @@ from openai import OpenAI
 import json
 from tqdm import tqdm
 import argparse, os
+from toolbox.utils.all_devices import API_MODEL
 
 ######################## Parameters ########################
-PROJECT_PATH = "YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE"
-client = OpenAI(api_key="your-deepseek-api-key", base_url="https://api.deepseek.com")
+PROJECT_PATH = "/home/zhaosiyao/SoccerAgent"
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'), base_url=os.getenv('OPENAI_BASE_URL'))
 
 def workflow(input_text, Instruction, follow_up_prompt=None, max_tokens_followup=1500):
 
     completion = client.chat.completions.create(
-        model="deepseek-chat",
+        model=API_MODEL,
         messages=[
             {"role": "system", "content": Instruction},
             {"role": "user", "content": input_text}
         ],
-        stream=False 
+        stream=False
     )
-    
+
     first_round_reply = completion.choices[0].message.content
-    
+
     if follow_up_prompt:
         completion = client.chat.completions.create(
-            model="deepseek-chat",
+            model=API_MODEL,
             messages=[
                 {"role": "system", "content": Instruction},
                 {"role": "user", "content": input_text},
@@ -43,22 +44,22 @@ def workflow(input_text, Instruction, follow_up_prompt=None, max_tokens_followup
 
 
 def generate_commentary_from_json_matchtime(json_file_path):
-    with open(json_file_path, 'r', encoding='utf-8') as file:
+    with open(json_file_path, 'r', encoding='utf-8', errors='replace') as file:
         data = json.load(file)
-    
+
     event_list = data.get("annotations", [])
     if not event_list:
         return "No annotations found in the JSON file."
-    
+
     result = []
-    
-    for event in reversed(event_list): 
+
+    for event in reversed(event_list):
         timestamp = event.get("contrastive_aligned_gameTime", "")
         if not timestamp:
             timestamp = event.get("gameTime", "")
         if not timestamp:
-            continue  
-        
+            continue
+
         try:
             half, time = timestamp.split(" - ")
             if half == "1":
@@ -66,95 +67,95 @@ def generate_commentary_from_json_matchtime(json_file_path):
             elif half == "2":
                 half_str = "2nd half"
             else:
-                continue 
+                continue
         except ValueError:
-            continue 
-        
+            continue
+
         description = event.get("description", "")
         if not description:
             continue
-        
+
         commentary_line = f"{half_str} - {time} \"{description}\""
         result.append(commentary_line)
-    
+
     return "\n".join(result)
 
 def generate_commentary_from_json_1988(json_file_path):
-    with open(json_file_path, 'r', encoding='utf-8') as file:
+    with open(json_file_path, 'r', encoding='utf-8', errors='replace') as file:
         data = json.load(file)
-    
+
     comments_list = data.get("comments", [])
     if not comments_list:
         return "No comments found in the JSON file."
-    
+
     result = []
-    
+
     for comment in comments_list:
         half = comment.get("half")
         if half not in [1, 2]:
-            continue 
-        
+            continue
+
         timestamp = comment.get("time_stamp", "")
         if not timestamp:
-            continue 
-        
+            continue
+
         comments_text = comment.get("comments_text", "")
         if not comments_text:
-            continue 
-        
+            continue
+
         half_str = "1st half" if half == 1 else "2nd half"
-        
+
         commentary_line = f"{half_str} - {timestamp} \"{comments_text}\""
         result.append(commentary_line)
-    
+
     return "\n".join(result)
 
 def get_match_info_matchtime(json_file_path):
-    with open(json_file_path, 'r', encoding='utf-8') as file:
+    with open(json_file_path, 'r', encoding='utf-8', errors='replace') as file:
         data = json.load(file)
-    
+
     if "annotations" in data:
         del data["annotations"]
-    
+
     result = json.dumps(data, indent=4, ensure_ascii=False)
-    
+
     return result
 
 def get_match_info_1988(json_file_path):
-    with open(json_file_path, 'r', encoding='utf-8') as file:
+    with open(json_file_path, 'r', encoding='utf-8', errors='replace') as file:
         data = json.load(file)
-    
+
     if "comments" in data:
         del data["comments"]
-    
+
     result = json.dumps(data, indent=4, ensure_ascii=False)
-    
+
     return result
 
 def get_match_info(json_file_path):
     basename = os.path.basename(json_file_path)
-    
+
     if basename == "Labels-caption.json":
         return get_match_info_matchtime(json_file_path)
     else:
         return get_match_info_1988(json_file_path)
-    
+
 def generate_commentary_from_json(json_file_path):
     basename = os.path.basename(json_file_path)
-    
+
     if basename == "Labels-caption.json":
         return generate_commentary_from_json_matchtime(json_file_path)
     else:
         return generate_commentary_from_json_1988(json_file_path)
-    
+
 def MATCH_HISTORY_RETRIEVAL(query, material):
     if len(material) == 0:
         return "Something went wrong with this question."
-    
+
     file_path = os.path.join(PROJECT_PATH, material[0])
     match_history = generate_commentary_from_json(file_path)
-    prompt = f"""Here is a question about soccer game: 
-    
+    prompt = f"""Here is a question about soccer game:
+
     "{query}"
 
 The match history information has been found as following shows, you need to answer the question based on the information provided:
@@ -176,11 +177,11 @@ You should return exactly in this form without any other words.
 def GAME_INFO_RETRIEVAL(query, material):
     if len(material) == 0:
         return "Something went wrong with this question."
-    
+
     file_path = os.path.join(PROJECT_PATH, material[0])
     match_info = get_match_info(file_path)
-    prompt = f"""Here is a question about soccer game: 
-    
+    prompt = f"""Here is a question about soccer game:
+
     "{query}"
 
 The match related information has been found as following shows, you need to answer the question based on the information provided:

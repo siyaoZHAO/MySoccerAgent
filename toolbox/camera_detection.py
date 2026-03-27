@@ -7,35 +7,35 @@ from io import BytesIO
 from PIL import Image
 from collections import Counter
 
-PROJECT_PATH = "PROJECT_PATH" # Replace with actual project path
+PROJECT_PATH = "/home/zhaosiyao/SoccerAgent" # Replace with actual project path
 
 def encode_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
-    
+
 
 def extract_camera_position(reply):
     options = [
-        "Main camera center", "Close-up player or field referee", "Close-up side staff", 
-        "Main camera left", "Main behind the goal", "Close-up behind the goal", 
-        "Spider camera", "Main camera right", "Public", "Goal line technology camera", 
+        "Main camera center", "Close-up player or field referee", "Close-up side staff",
+        "Main camera left", "Main behind the goal", "Close-up behind the goal",
+        "Spider camera", "Main camera right", "Public", "Goal line technology camera",
         "Close-up corner", "Inside the goal", "Other"
     ]
-    
+
     pattern = "|".join([re.escape(option) for option in options])
-    
+
     match = re.search(pattern, reply)
-    
+
     if match:
         return match.group(0)
     else:
         return "None"
 
 
-def send_request_with_background(prompt, img_64=None, background=[], api_key="YOUR_API_KEY"):
+def send_request_with_background(prompt, img_64=None, background=[]):
     client = OpenAI(
-        base_url='YOUR_API_BASE_URL',  # Replace with your OpenAI API base URL
-        api_key=api_key
+        base_url=os.getenv("OPENAI_BASE_URL"),
+        api_key=os.getenv("OPENAI_API_KEY")
     )
     messages = background.copy()
     messages.append({"role": "user", "content": []})
@@ -63,7 +63,7 @@ def send_request_with_background(prompt, img_64=None, background=[], api_key="YO
 
 
 def CAMERA_DETECTION(query=None, material=[]):
-    example_path = f"{PROJECT_PATH}/pipeline/toolbox/utils/example_tiny" # Example images for learning camera positions
+    example_path = f"{PROJECT_PATH}/toolbox/utils/example_tiny" # Example images for learning camera positions
     example_img = [os.path.join(example_path, f) for f in os.listdir(example_path)]
     example_img = sorted(example_img)
     camera_position = ["Close-up behind the goal", "Close-up corner", "Close-up player or field referee", "Close-up side staff", "Goal line technology camera", "Inside the goal", "Main behind the goal", "Main camera center", "Main camera left", "Main camera right", "Other", "Public", "Spider camera"]
@@ -96,7 +96,7 @@ def CAMERA_DETECTION(query=None, material=[]):
         ans = extract_camera_position(reply)
 
         return f"The camera position in the photo is: {ans}."
-    
+
     elif file_extension in video_extensions:
         video_path = img_path
         cap = cv2.VideoCapture(video_path)

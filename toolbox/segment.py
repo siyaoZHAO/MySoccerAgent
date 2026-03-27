@@ -1,15 +1,15 @@
 import os
 from pathlib import Path
 import json
+import sys
+sys.path.append("/home/zhaosiyao/SoccerAgent/toolbox")
 from .utils.GroundingDINO.demo.inference_on_a_image import inference_on_a_image
 import cv2
 
-PROJECT_PATH = "YOUR_PROJECT_PATH"  # Replace with your actual project path
-
 
 def SEGMENT(query=None, material=[]):
-    config_file = "YOUR_CONFIG_PATH/GroundingDINO_SwinB_cfg.py"
-    model_weights = "YOUR_MODEL_WEIGHT_PATH/groundingdino_swinb_cogcoor.pth"
+    config_file = "/home/zhaosiyao/SoccerAgent/toolbox/utils/GroundingDINO/groundingdino/config/GroundingDINO_SwinB_cfg.py"
+    model_weights = "/home/zhaosiyao/SoccerAgent/toolbox/utils/GroundingDINO/groundingdino_swinb_cogcoor.pth"
     image_path = material[0]
     text = query
     output_path = "HELPER_FILE" # replace with your helper file path to save the output image
@@ -57,7 +57,7 @@ def SEGMENT(query=None, material=[]):
         for image_path in images_path:
             pred_dict = inference_on_a_image(config_file, model_weights, image_path, text, output_path)
             current_detections = len(pred_dict['boxes'])
-            
+
             if current_detections > max_detections:
                 max_detections = current_detections
                 best_image_path = image_path

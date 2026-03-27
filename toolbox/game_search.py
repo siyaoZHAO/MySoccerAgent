@@ -2,27 +2,31 @@ from openai import OpenAI
 import json, os
 from tqdm import tqdm
 import argparse
+from toolbox.utils.all_devices import API_MODEL
 
 ######################## Parameters ########################
-PROJECT_PATH = "YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE"
-client = OpenAI(api_key="your-deepseek-api-key", base_url="https://api.deepseek.com")
+PROJECT_PATH = "/home/zhaosiyao/SoccerAgent"
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url=os.getenv("OPENAI_BASE_URL")
+)
 
 def workflow(input_text, Instruction, follow_up_prompt=None, max_tokens_followup=1500):
 
     completion = client.chat.completions.create(
-        model="deepseek-chat",
+        model=API_MODEL,
         messages=[
             {"role": "system", "content": Instruction},
             {"role": "user", "content": input_text}
         ],
-        stream=False 
+        stream=False
     )
-    
+
     first_round_reply = completion.choices[0].message.content
-    
+
     if follow_up_prompt:
         completion = client.chat.completions.create(
-            model="deepseek-chat",
+            model=API_MODEL,
             messages=[
                 {"role": "system", "content": Instruction},
                 {"role": "user", "content": input_text},
@@ -79,9 +83,9 @@ def extract_match_info(input_text):
     llm_output = workflow(input_text, INSTRUCTION)
     pattern = re.compile(
         r"^(\w+):\s*(.*?)\s*$",
-        re.MULTILINE 
+        re.MULTILINE
     )
-    
+
     match = pattern.findall(llm_output)
     info = {key: value for key, value in match}
     return info if info else default_dict
@@ -104,14 +108,14 @@ def retrieve_candidates(info, csv_path=os.path.join(PROJECT_PATH, "database/Game
         conditions.append(df["day"] == int(info["day"].lstrip('0')))
     if info["time"] != "unknown":
         conditions.append(df["time"] == info["time"])
- 
+
     if conditions:
         initial_filtered_df = df[pd.concat(conditions, axis=1).all(axis=1)]
     else:
         initial_filtered_df = df
     team_fields = ["team1", "team2"]
     team_values = [info[field] for field in team_fields]
-    
+
     if any(value is not None for value in team_values):
         team_conditions = []
         if info["team1"] and info["team2"]:
@@ -131,42 +135,42 @@ def retrieve_candidates(info, csv_path=os.path.join(PROJECT_PATH, "database/Game
                 df["home_team"].str.replace(" ", "").str.contains(info["team2"].replace(" ", ""), case=False, na=False) |
                 df["away_team"].str.replace(" ", "").str.contains(info["team2"].replace(" ", ""), case=False, na=False)
             )
-        
+
         if team_conditions:
             final_filtered_df = initial_filtered_df[pd.concat(team_conditions, axis=1).any(axis=1)]
         else:
             final_filtered_df = initial_filtered_df
     else:
         final_filtered_df = initial_filtered_df
-    
+
     if len(final_filtered_df) > 10:
         final_filtered_df = None
-    
+
     return initial_filtered_df, final_filtered_df
 
 def finalize_candidate_selection(candidates, candidates_with_team, info, question):
 
     if candidates is None or len(candidates) == 0:
         return "We did not find the match you mentioned in the database."
-    
+
     if len(candidates) == 1:
         file_path = candidates.iloc[0]["file_path"]
         return f"The game information file path is: {file_path}"
     if len(candidates_with_team) == 1:
         file_path = candidates_with_team.iloc[0]["file_path"]
         return f"The game information file path is: {file_path}"
-    
+
     if len(candidates) > 1:
         prompt = f"""
         You are a helpful assistant that selects the most likely match from a list of candidates based on the given information. Now we need to retrieve a file path for the most probable match from the database from the question: "{question}".
-        
+
         Such question has been transformed to the original query information as:
-        
+
         {info}
-        
+
         Here are the candidate matches:
         """
-        
+
         for i, row in candidates.iterrows():
             prompt += f"""
             Candidate {i + 1}:
@@ -182,26 +186,26 @@ def finalize_candidate_selection(candidates, candidates_with_team, info, questio
             - Away Team: {row['away_team']}
             - file_path: {row['file_path']}
             """
-        
+
         prompt += """
-        Based on the original query information and the candidate matches above, is there a match that is significantly more likely than the others? 
+        Based on the original query information and the candidate matches above, is there a match that is significantly more likely than the others?
 
         Firstly, you should exclude those candidates in the following situation:
-        1. If **any of the team's name in original query information** is sure not to be in team names from candidates, such candidate cannot be returned anymore, you cannot let such candidate take place in your return answer. 
+        1. If **any of the team's name in original query information** is sure not to be in team names from candidates, such candidate cannot be returned anymore, you cannot let such candidate take place in your return answer.
         2. For example, if the original query information contains "Chelsea" and "West Ham", but candidates contains "chelsea FC" and "Liverpool", since such candidate cannot be returned anymore since West Ham is not in candidate information.
         3. For example, if the original query information contains "Chelsea" and "West Ham", but candidates contains "Chelsea FC" and "West Ham United", since such candidate is still possible to be returned since both team names are in candidate information.
         4. For example, if the original query information contains only "Chelsea", but candidates contains "Bayern Munich" and "Real Madrid", since such candidate cannot be returned since Chelsea is not in candidate information.
-        
+
         After considering the above situation and exclude those candidate having team name unmatched, you should consider the following two situations:
 
         1. If there are still **obviously** probable answer with all known information correct, please return the file path of that match EXACTLY in the following format:
-        "The given information seems incomplete, but we found the most probable match in the database with this file path: [The file path of the **hugely most probable** match]. [Here give some recommendation to complete the information if possible, for example, provide the date or the score of the match, or which team is the home/away team .etc. Use simple and clear words here.]" 
+        "The given information seems incomplete, but we found the most probable match in the database with this file path: [The file path of the **hugely most probable** match]. [Here give some recommendation to complete the information if possible, for example, provide the date or the score of the match, or which team is the home/away team .etc. Use simple and clear words here.]"
 
         2. If no match is significantly more likely among all the candidates, please return all candidate matches with information of league, season, date, time, score, home_team, away_team, venue and referee (without file path), and explain that the information provided is too vague. For this situation you only need to summarize with a little bit the games and give a brief reply with some short sentences.
         """
-        
+
         llm_output = workflow(prompt, "You are an soccer expert that selects the most likely match from a list of candidates based on the given information.")
-        
+
         return llm_output
 
 def GAME_SEARCH(query, materials=None):

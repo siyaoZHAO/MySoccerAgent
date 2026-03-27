@@ -1,5 +1,5 @@
 import sys
-sys.path.append('YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE/pipeline/toolbox/unisoccer')
+sys.path.append('/home/zhaosiyao/SoccerAgent/toolbox/unisoccer')
 from model.MatchVision import VisionTimesformer, TextEncoder
 from torch import nn
 import torch.nn.functional as F
@@ -34,7 +34,7 @@ class MatchVision_contrastive_model(nn.Module):
     def encode_visual(self, video_frame):
         visual_features = self.visual_encoder(video_frame).mean(dim=1)
         return visual_features
-    
+
     def encode_textual(self, comments_text):
         textual_features = self.text_encoder(comments_text)[0]
         return textual_features

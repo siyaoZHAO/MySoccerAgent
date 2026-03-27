@@ -1,28 +1,30 @@
 from openai import OpenAI
 import json
+import os
 from tqdm import tqdm
 import argparse
+from toolbox.utils.all_devices import API_MODEL
 
 ######################## Parameters ########################
-PROJECT_PATH = "YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE"
-client = OpenAI(api_key="your-deepseek-api-key", base_url="https://api.deepseek.com")
+PROJECT_PATH = '/home/zhaosiyao/SoccerAgent'
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'), base_url=os.getenv('OPENAI_BASE_URL'))
 
 def workflow(input_text, Instruction, follow_up_prompt=None, max_tokens_followup=1500):
 
     completion = client.chat.completions.create(
-        model="deepseek-chat",
+        model=API_MODEL,
         messages=[
             {"role": "system", "content": Instruction},
             {"role": "user", "content": input_text}
         ],
-        stream=False 
+        stream=False
     )
-    
+
     first_round_reply = completion.choices[0].message.content
-    
+
     if follow_up_prompt:
         completion = client.chat.completions.create(
-            model="deepseek-chat",
+            model=API_MODEL,
             messages=[
                 {"role": "system", "content": Instruction},
                 {"role": "user", "content": input_text},
@@ -37,7 +39,7 @@ def workflow(input_text, Instruction, follow_up_prompt=None, max_tokens_followup
     else:
         return first_round_reply
 
-    
+
 def extract_entity_info(question):
     """
     Extracts the type and exact name of a football-related entity (player, referee, team, venue) from a given question.
@@ -122,6 +124,9 @@ def find_json_path(base_folder, entity_type, entity_name):
     }
 
     # Get the subfolder and key based on the entity type
+    if entity_type not in type_to_key:
+        return "No matching file found."
+
     subfolder = os.path.join(base_folder, entity_type)
     key = type_to_key[entity_type]
 
@@ -148,10 +153,8 @@ def find_json_path(base_folder, entity_type, entity_name):
             prompt += f"- {name}\n"
 
         prompt += "\nPlease help me determine the best match in the candidate list that is the most likely to be the entity I want. You can just reply me with the exact name of the cantidate you think is the best match without any other words.Please think it carefully and don't give me the wrong answer. I trust you. If really none of them are possible, return me with 'No Matching'\n"
-        # print(prompt)
         # Use the workflow function to determine the best match
         best_match = workflow(prompt, "You are an assistant of entity search in soccer database. Determine the best match for the given entity name.")
-        # print(best_match)
         # Find the file path corresponding to the best match
         for name, file_path in potential_matches:
             if name == best_match:
@@ -160,11 +163,11 @@ def find_json_path(base_folder, entity_type, entity_name):
     # If no match is found at all, return None
     return "No matching file found."
 
-def TEXTUAL_ENTITY_SEARCH(question, material=None, base_folder = os.path.join(PROJECT_PATH, "database/SoccerWiki/data")):
+def TEXTUAL_ENTITY_SEARCH(question, material=None, base_folder="/data/zhaosiyao/SoccerWiki/data"):
     entity_type, entity_name = extract_entity_info(question)
     if entity_type == "unknown" or entity_name == "unknown":
         return "No matching file found."
     else:
         json_path = find_json_path(base_folder, entity_type, entity_name)
         return f"The wiki information of this entity could be found in {json_path}."
-    
+

@@ -1,6 +1,6 @@
 import random
 import sys
-sys.path.append('YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE/pipeline/toolbox/unisoccer')
+sys.path.append('/home/zhaosiyao/SoccerAgent/toolbox/unisoccer')
 import io
 import av
 import cv2
@@ -59,7 +59,7 @@ def get_frame_indices(num_frames, vlen, sample='rand', fix_start=None, input_fps
     return frame_indices
 
 def read_frames_decord(
-        video_path, num_frames, sample='rand', fix_start=None, 
+        video_path, num_frames, sample='rand', fix_start=None,
         max_num_frames=-1, trimmed30=False, processor=None
     ):
     video_reader = VideoReader(video_path, num_threads=1)

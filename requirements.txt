@@ -41,7 +41,7 @@ frozenlist==1.6.0
 fsspec==2025.3.0
 future==1.0.0
 gast==0.6.0
-genai==2.1.0
+# genai==2.1.0  # 已移除：该 PyPI 包依赖 openai<0.28，与 openai>=1.x 冲突；项目使用 google-genai，代码未使用本包
 google-auth==2.39.0
 google-genai==1.12.1
 google-pasta==0.2.0
@@ -160,9 +160,9 @@ tiktoken==0.3.3
 timm==1.0.15
 tokenizers==0.21.1
 tomli==2.2.1
-torch==2.6.0
-torchaudio==2.6.0
-torchvision==0.21.0
+# torch==2.6.0
+# torchaudio==2.6.0
+# torchvision==0.21.0
 tornado==6.4.2
 tqdm==4.67.1
 traitlets==5.14.3

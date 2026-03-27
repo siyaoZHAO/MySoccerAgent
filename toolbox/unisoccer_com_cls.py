@@ -1,5 +1,5 @@
 import sys
-sys.path.append('YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE/pipeline/toolbox/unisoccer')
+sys.path.append('/home/zhaosiyao/SoccerAgent/toolbox/unisoccer')
 from inference.distribution import preprocessor, classifier, commentary_model
 import einops
 
@@ -9,17 +9,17 @@ import torch.nn.functional as F
 def classify_video(video_path, preprocessor=preprocessor, classifier=classifier):
 
     CLASS_NAMES = ["var", "end of half game", "clearance", "second yellow card", "injury", "ball possession", "throw in", "show added time", "shot off target", "start of half game", "substitution", "saved by goal-keeper", "red card", "lead to corner", "ball out of play", "off side", "goal", "penalty", "yellow card", "foul lead to penalty", "corner", "free kick", "foul with no card"]
-    
+
     with torch.no_grad():
         video_tensor = preprocessor(video_path)
         logits = classifier.classify(video_tensor)
-    
+
     probs = F.softmax(logits, dim=-1).squeeze().cpu()
-    
+
     prob_dict = {name: float(prob) for name, prob in zip(CLASS_NAMES, probs)}
-    
+
     sorted_dict = dict(sorted(prob_dict.items(), key=lambda x: x[1], reverse=True))
-    
+
     return sorted_dict
 
 
@@ -29,7 +29,7 @@ def format_top_predictions(prob_dict, threshold=0.05):
     for cls, prob in prob_dict.items():
         if prob >= threshold:
             top_predictions.append(f"{cls} - {prob*100:.1f}%")
-    
+
     return ", ".join(top_predictions)
 
 def ACTION_CLASSIFICATION(query, material):
@@ -61,7 +61,7 @@ def commentary_video(video_path, preprocessor=preprocessor, commentary_model=com
             frame_position_embeddings = commentary_model.video_frame_position_embedding(position_ids)
             frame_position_embeddings = frame_position_embeddings.unsqueeze(-2)
         frame_hidden_state = einops.rearrange(video_features, '(b t) n f -> b t n f',b=batch_size,t=time_length)
-        
+
         if commentary_model.need_temporal == "yes":
             frame_hidden_state = frame_position_embeddings + frame_hidden_state
 
@@ -78,9 +78,9 @@ def commentary_video(video_path, preprocessor=preprocessor, commentary_model=com
         video_hidden = video_query_output.last_hidden_state
 
         inputs_llama = commentary_model.llama_proj(video_hidden)
-        
+
         return commentary_model.generate_text(inputs_llama)[0]
-    
+
 
 
 def COMMENTARY_GENERATION(query, material):

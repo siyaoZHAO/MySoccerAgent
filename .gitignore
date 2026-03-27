@@ -1,0 +1,22 @@
+__pycache__/
+*.pyc
+.DS_Store
+
+# Data and Logs
+database/
+cache/
+log/
+home/
+*.log
+
+# Results and Metadata
+metadata_ma_*.json
+baseline/metadata_*.json
+baseline/metadata_test_*.json
+metadata_test_*.json
+
+# Model Weights
+*.pth
+*.pt
+toolbox/utils/weights/
+toolbox/utils/face_library.pkl

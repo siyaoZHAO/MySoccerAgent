@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# 创建一个新的 tmux 会话，名为 soccer_exam，如果已存在则附加
+SESSION="vqa-test"
+tmux has-session -t $SESSION 2>/dev/null
+if [ $? != 0 ]; then
+    tmux new-session -d -s $SESSION
+fi
+
+# 在 tmux 会话中激活指定conda环境、cd到指定目录、设置API Key，并运行Python脚本
+tmux send-keys -t $SESSION "
+conda activate sn
+cd /home/zhaosiyao/SoccerAgent/baseline
+export OPENROUTER_API_KEY=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
+python baseline_acc.py \
+    --input_file /data/zhaosiyao/SoccerNet/SoccerNet-SN-VQA-2026/test/test.json \
+    --materials_folder /data/zhaosiyao/SoccerNet/SoccerNet-SN-VQA-2026/test \
+    --output_file metadata_test_20260321_133703.json \
+    --model xiaomi/mimo-v2-omni
+" C-m
+
+tmux attach-session -t $SESSION

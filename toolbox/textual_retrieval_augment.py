@@ -2,27 +2,28 @@ from openai import OpenAI
 import json, os
 from tqdm import tqdm
 import argparse
+from toolbox.utils.all_devices import API_MODEL
 
 ######################## Parameters ########################
-PROJECT_PATH = "YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE"
-client = OpenAI(api_key="your-deepseek-api-key", base_url="https://api.deepseek.com")
+PROJECT_PATH = "/home/zhaosiyao/SoccerAgent"
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'), base_url=os.getenv('OPENAI_BASE_URL'))
 
 def workflow(input_text, Instruction, follow_up_prompt=None, max_tokens_followup=1500):
 
     completion = client.chat.completions.create(
-        model="deepseek-chat",
+        model=API_MODEL,
         messages=[
             {"role": "system", "content": Instruction},
             {"role": "user", "content": input_text}
         ],
-        stream=False 
+        stream=False
     )
-    
+
     first_round_reply = completion.choices[0].message.content
-    
+
     if follow_up_prompt:
         completion = client.chat.completions.create(
-            model="deepseek-chat",
+            model=API_MODEL,
             messages=[
                 {"role": "system", "content": Instruction},
                 {"role": "user", "content": input_text},
@@ -53,7 +54,7 @@ def generate_textual_RAG_prompt(question, textual_material):
     if isinstance(textual_material, str) and textual_material.endswith(".json"):
         try:
             # Read the JSON file and convert it to a formatted string
-            with open(textual_material, "r", encoding="utf-8") as f:
+            with open(textual_material, "r", encoding="utf-8", errors="replace") as f:
                 json_data = json.load(f)
                 formatted_json = json.dumps(json_data, indent=4, ensure_ascii=False)
                 textual_material = formatted_json
@@ -81,7 +82,22 @@ def TEXTUAL_RETRIEVAL_AUGMENT(question, textual_material):
     """
     # Define the instruction for the agent
     Instruction = "You are an assistant that answers questions based on provided contextual material."
-    file_path = os.path.join(PROJECT_PATH, textual_material[0])
+
+    if not textual_material:
+        return "Failed: No textual material provided."
+
+    if isinstance(textual_material, list):
+        if len(textual_material) == 0:
+            return "Failed: Empty textual material list."
+        file_path = textual_material[0]
+    else:
+        file_path = textual_material
+
+    if not isinstance(file_path, str):
+        return "Failed: Invalid textual material format."
+
+    if not os.path.isabs(file_path):
+        file_path = os.path.join(PROJECT_PATH, file_path)
 
     # Generate the prompt
     prompt = generate_textual_RAG_prompt(question, file_path)

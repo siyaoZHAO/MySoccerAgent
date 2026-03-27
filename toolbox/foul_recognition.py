@@ -1,21 +1,23 @@
+import os
 import re
 from openai import OpenAI
+from toolbox.utils.all_devices import API_MODEL
 
-def workflow(input_text, Instruction="You are an expert of soccer referee.", follow_up_prompt=None, api_key="your-deepseek-api-key", max_tokens_followup=1500):
-    client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+def workflow(input_text, Instruction="You are an expert of soccer referee.", follow_up_prompt=None, max_tokens_followup=1500):
+    client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'), base_url=os.getenv('OPENAI_BASE_URL'))
     completion = client.chat.completions.create(
-        model="deepseek-chat",
+        model=API_MODEL,
         messages=[
             {"role": "system", "content": Instruction},
             {"role": "user", "content": input_text}
         ],
     )
-    
+
     first_round_reply = completion.choices[0].message.content
-    
+
     if follow_up_prompt:
         completion = client.chat.completions.create(
-            model="deepseek-chat",
+            model=API_MODEL,
             messages=[
                 {"role": "system", "content": Instruction},
                 {"role": "user", "content": input_text},
@@ -32,10 +34,10 @@ def workflow(input_text, Instruction="You are an expert of soccer referee.", fol
 def generate_prompt(question):
     """
     Generates a prompt for classifying the input question into one of the 11 categories.
-    
+
     Args:
         question (str): The input question to classify.
-    
+
     Returns:
         str: A formatted prompt for an LLM to classify the question.
     """
@@ -60,7 +62,7 @@ def generate_prompt(question):
         "Do not include any additional text or explanations.\n\n"
         "Question: "
     )
-    
+
     # Combine the context with the input question
     prompt = context + question
     return prompt
@@ -69,10 +71,10 @@ def generate_prompt(question):
 def extract_category(output):
     """
     Extracts the category from the LLM output using a regular expression.
-    
+
     Args:
         output (str): The LLM output containing the classification.
-    
+
     Returns:
         str: The extracted category.
     """
@@ -83,19 +85,19 @@ def extract_category(output):
 
 
 import sys
-sys.path.append('YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE/pipeline/toolbox')
+sys.path.append('/home/zhaosiyao/SoccerAgent/toolbox')
 
 from vlm import VLM
 
 def generate_vlm_prompt(question: str, category: str, index: int) -> str:
     """
     Generates a prompt for a Vision-Language Model (VLM) to classify a question into one of the predefined options.
-    
+
     Args:
         question (str): The input question to answer.
         category (str): The category of the question (e.g., "Offence", "Contact", etc.).
         index (int): The index of the video being analyzed.
-    
+
     Returns:
         str: A formatted prompt for the VLM to answer the question.
     """
@@ -113,13 +115,13 @@ def generate_vlm_prompt(question: str, category: str, index: int) -> str:
         "Handball": ["Yes", "No"],
         "Handball offence": ["Yes", "No"]
     }
-    
+
     # Get the options for the given category
     options = category_options.get(category, [])
-    
+
     # Format the options as a readable string
     options_str = ", ".join([f'"{option}"' for option in options])
-    
+
     # Generate the prompt
     prompt = (
         f"You are a professional football referee tasked with analyzing a video and answering the following question: \"{question}\".\n"
@@ -127,7 +129,7 @@ def generate_vlm_prompt(question: str, category: str, index: int) -> str:
         f"Please provide your answer based solely on the content of the video. Your response MUST(!!!) be strictly one of the following options: {options_str}.\n"
         f"Do not include any additional text or explanations. Provide your answer now, without any other words, only one of the above option itself:"
     )
-    
+
     return prompt
 
 import re
@@ -136,11 +138,11 @@ from collections import Counter
 def FOUL_RECOGNITION(query: str, materials: list) -> str:
     """
     Recognizes the most frequent foul-related answer across multiple videos.
-    
+
     Args:
         query (str): The input question to analyze.
         materials (list): A list of video paths to be analyzed.
-    
+
     Returns:
         str: The most frequent answer among all videos.
     """
@@ -152,7 +154,7 @@ def FOUL_RECOGNITION(query: str, materials: list) -> str:
     # print(category)
     # Step 2: Initialize a list to store VLM answers
     vlm_answers = []
-    
+
     # Step 3: Iterate over each video path in materials
     for idx, video_path in enumerate(materials):
         # Generate the VLM prompt
@@ -166,7 +168,7 @@ def FOUL_RECOGNITION(query: str, materials: list) -> str:
     # Step 4: Determine the most frequent answer
     if not vlm_answers:
         return "No answers found"
-    
+
     # Count the frequency of each answer
     answer_counts = Counter(vlm_answers)
 

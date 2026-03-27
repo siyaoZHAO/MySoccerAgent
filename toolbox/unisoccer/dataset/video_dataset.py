@@ -1,6 +1,6 @@
 import torch
 import sys
-sys.path.append('YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE/pipeline/toolbox/unisoccer')
+sys.path.append('/home/zhaosiyao/SoccerAgent/toolbox/unisoccer')
 import json
 import os
 import random
@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 from dataset.video_utils_siglip import read_frames_decord, set_transform
 
 class VideoCaptionDataset(Dataset):
-    def __init__(self, json_file, video_base_dir, num_frames=30, sample='rand', 
+    def __init__(self, json_file, video_base_dir, num_frames=30, sample='rand',
                  fix_start=None, max_num_frames=-1, trimmed30=False,
                  keywords = [
                     'corner', 'goal', 'injury', 'own goal', 'penalty', 'penalty missed', 'red card', 'second yellow card', 'substitution', 'start of game(half)', 'end of game(half)', 'yellow card', 'throw in', 'free kick', 'saved by goal-keeper', 'shot off target', 'clearance', "lead to corner", 'off-side', 'var', 'foul with no card', 'statistics and summary', 'ball possession', 'ball out of play'
@@ -38,10 +38,10 @@ class VideoCaptionDataset(Dataset):
                     item["video"] = os.path.join(video_base_dir[i], item["video"])
                 self.data.extend(current_data)
                 print(f"File loaded: {json_file[i]}")
-    
+
     def __len__(self):
         return len(self.data)
-    
+
     def __getitem__(self, idx):
         num_retries = 50
         for _ in range(num_retries):
@@ -51,7 +51,7 @@ class VideoCaptionDataset(Dataset):
                 caption = self.caption_to_tensor(video_info['caption'])
                 # Extract frames using the pre-defined function
                 frames, frame_indices, duration = read_frames_decord(
-                    video_path, self.num_frames, self.sample, self.fix_start, 
+                    video_path, self.num_frames, self.sample, self.fix_start,
                     self.max_num_frames, self.trimmed30
                 )
                 frames = torch.cat([self.transform(images=frame, return_tensors="pt")["pixel_values"] for frame in frames], dim=0)
@@ -64,7 +64,7 @@ class VideoCaptionDataset(Dataset):
                 idx = random.randint(0, len(self) - 1)
                 print(f"changed index from {old_idx} to {idx}.")
                 continue
-    
+
     def caption_to_tensor(self, caption):
         """
         Converts a caption string to a tensor based on the keywords list.
@@ -77,16 +77,16 @@ class VideoCaptionDataset(Dataset):
             if keyword == caption:
                 caption_index = i
                 break
-        
+
         # Convert the index to a tensor
         caption_tensor = torch.tensor(caption_index, dtype=torch.long)
-                
+
         return caption_tensor
 
 class VideoCaptionDataset_Balanced(Dataset):
-    def __init__(self, json_file = ["./train_data/json/SoccerNet-v2/classification_train.json"], 
-                video_base_dir=["PATH_TO_FOLDER_OF_VIDEO_CLIPS_OF_SOCCERNET_V2"], 
-                 sample='rand', 
+    def __init__(self, json_file = ["./train_data/json/SoccerNet-v2/classification_train.json"],
+                video_base_dir=["PATH_TO_FOLDER_OF_VIDEO_CLIPS_OF_SOCCERNET_V2"],
+                 sample='rand',
                  num_frames=30, fix_start=None, max_num_frames=-1, trimmed30=False,
                  keywords=['Penalty', 'Kick-off', 'Shots off target', 'Shots on target', 'Throw-in', 'Ball out of play', 'Foul', 'Direct free-kick', 'Yellow card', 'Goal', 'Clearance', 'Indirect free-kick', 'Offside', 'Corner', 'Yellow->red card', 'Red card', 'Substitution'],
                  sample_num=[500, 2000, 2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500, 250, 250, 2500],
@@ -104,7 +104,7 @@ class VideoCaptionDataset_Balanced(Dataset):
         self.transform = set_transform()
         self.require_text = require_text
         self.text_key = text_key
-        
+
         self.data = []
         # Load data from JSON file
         for i in range(len(json_file)):
@@ -152,7 +152,7 @@ class VideoCaptionDataset_Balanced(Dataset):
                 caption = self.caption_to_tensor(video_info['caption'])
 
                 frames, frame_indices, duration = read_frames_decord(
-                    video_path, self.num_frames, self.sample, self.fix_start, 
+                    video_path, self.num_frames, self.sample, self.fix_start,
                     self.max_num_frames, self.trimmed30
                 )
                 frames = torch.cat([self.transform(images=frame, return_tensors="pt")["pixel_values"] for frame in frames], dim=0)

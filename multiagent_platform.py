@@ -6,7 +6,7 @@ import json
 from tqdm import tqdm
 import argparse
 import sys
-sys.path.append('YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE/pipeline')
+sys.path.append('/home/zhaosiyao/SoccerAgent')
 
 
 
@@ -18,8 +18,9 @@ sys.path.append('YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE/pipeline')
 
 
 ######################## Parameters ########################
-PROJECT_PATH = "YOUR_FOLDER_PATH_TO_SOCCERAGENT_CODEBASE"
+PROJECT_PATH = "/home/zhaosiyao/SoccerAgent"
 from toolbox import *
+from toolbox.utils.all_devices import API_MODEL
 
 toolbox_functions = {
     "Textual Entity Search": TEXTUAL_ENTITY_SEARCH,
@@ -50,7 +51,7 @@ os.system('')
 
 def load_toolbox(file_path):
     descriptions = []
-    
+
     with open(file_path, newline='', encoding='utf-8') as csvfile:
         # reader = csv.DictReader(csvfile)
         reader = csv.DictReader(csvfile, quotechar='"', skipinitialspace=True)
@@ -63,7 +64,7 @@ def load_toolbox(file_path):
             material_input = row['material input']
             output = row['output']
             remark = row['remark']
-            
+
             description = f"=== Tool Description for TOOL{i} ===\n"
             # description += f"Name: TOOL{i}\n"
             description += f"Name: {tool_name}\n"
@@ -72,41 +73,40 @@ def load_toolbox(file_path):
             description += f"material Input: {material_input}\n"
             description += f"Output: {output}\n"
             description += f"Remark: {remark}\n"
-            
+
             descriptions.append(description)
-    
+
     return descriptions
 
-def load_toolbox_str(file_path=os.path.join(PROJECT_PATH, "pipeline/toolbox.csv")):
+def load_toolbox_str(file_path=os.path.join(PROJECT_PATH, "toolbox.csv")):
     toolbox = ""
     for i in load_toolbox(file_path):
         toolbox += f"{i}\n"
-    # print(toolbox)
     return toolbox
 
 
-def csv_to_task_string(csv_path=os.path.join(PROJECT_PATH, "pipeline/tasks.csv")):
+def csv_to_task_string(csv_path=os.path.join(PROJECT_PATH, "tasks.csv")):
     result = []
     with open(csv_path, 'r') as file:
         reader = csv.reader(file, quotechar='"', skipinitialspace=True)
-        next(reader) 
+        next(reader)
         for i, row in enumerate(reader, start=1):
-            if not row:  
+            if not row:
                 continue
-                
+
             task_str = f"Task{i}: ​**{row[0]}** {row[1]}"
-            
+
             chain = None
             for j in range(2, 5):
                 if j < len(row) and row[j].strip():
                     chain = row[j]
                     break
-            
+
             if chain:
                 task_str += f"\nRecommended chain: {chain}"
-            
+
             result.append(task_str + "\n")
-    
+
     return "\n".join(result)
 
 def generate_prompt(taskdecompositionprompt, query, additional_material):
@@ -115,24 +115,24 @@ def generate_prompt(taskdecompositionprompt, query, additional_material):
     prompt += f"Addittional Material: {additional_material}\n"
     return prompt
 
-def workflow(input_text, Instruction, follow_up_prompt=None, api_key="your-deepseek-api-key", max_tokens_followup=1500):
+def workflow(input_text, Instruction, follow_up_prompt=None, max_tokens_followup=1500):
 
-    client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
-    
+    client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'), base_url=os.getenv('OPENAI_BASE_URL'))
+
     completion = client.chat.completions.create(
-        model="deepseek-chat",
+        model=API_MODEL,
         messages=[
             {"role": "system", "content": Instruction},
             {"role": "user", "content": input_text}
         ],
-        stream=False 
+        stream=False
     )
-    
+
     first_round_reply = completion.choices[0].message.content
-    
+
     if follow_up_prompt:
         completion = client.chat.completions.create(
-            model="deepseek-chat",
+            model=API_MODEL,
             messages=[
                 {"role": "system", "content": Instruction},
                 {"role": "user", "content": input_text},
@@ -146,12 +146,12 @@ def workflow(input_text, Instruction, follow_up_prompt=None, api_key="your-deeps
         return first_round_reply, second_round_reply
     else:
         return first_round_reply
-    
+
 def parse_input(input_str):
     known_info = re.findall(r'\$(.*?)\$', input_str)
-    
+
     tool_chain = re.findall(r'\*(.*?)\*', input_str)
-    
+
     return (known_info, tool_chain)
 
 def generate_prompt_execution(query, material, response, toolbox, options):
@@ -184,8 +184,8 @@ For every tool above, we would input queries and materials into the tool for exe
 For every steps of excution, you should return me with a clear statement of the goal of this step in the context of the overall analysis, the specific tool you are using, and the input variables you are using.
 
 <Call>
-    <Purpose>Brief, clear statement of this step’s goal in context of overall analysis</Purpose> 
-    <Query>[Query/question here(string). IMPORTANT!!: Such query is highly relevant to the toolbox descriptions. you need to think carefully about your purpose this step and generate appropriate query.]</Query> 
+    <Purpose>Brief, clear statement of this step’s goal in context of overall analysis</Purpose>
+    <Query>[Query/question here(string). IMPORTANT!!: Such query is highly relevant to the toolbox descriptions. you need to think carefully about your purpose this step and generate appropriate query.]</Query>
     <Material>[Material list here(a string showing list form). Here as well, you need to think carefully considering the purpose and toolbox.]</Material>
     <Tool>[Tool name here(string)]</Tool>
 </Call>
@@ -193,8 +193,8 @@ For every steps of excution, you should return me with a clear statement of the 
 If it is the last step of the execution, you should return me with the following format:
 
 <EndCall>
-    <Purpose>Brief, clear statement of this step’s goal in context of overall analysis</Purpose> 
-    <Query>[Query/question here(string)]</Query> 
+    <Purpose>Brief, clear statement of this step’s goal in context of overall analysis</Purpose>
+    <Query>[Query/question here(string)]</Query>
     <Material>[Material list with file paths here(a string showing list form)]</Material>
     <Tool>[Tool name here(string)]</Tool>
 </EndCall>
@@ -265,7 +265,7 @@ def execute_tool_call(tool_name, query, material, toolbox_functions):
 
 def generate_LLM_prompt(query):
     prompt = f"""According to the total process of above conversation, now give me your answer to the question '{query}'. You should retrun me with the following form:
-    
+
 Answer: [Your answer here]
 Reasoning and Explanation: [Your reasoning and explanation here]
 
@@ -275,8 +275,8 @@ Please make sure that your answer is consistent with the total process of the ex
 
 
 
-def execute_tool_chain(input_text, toolbox_functions, Instruction="You are a helpful multi-agent assistant that can answer questions about soccer.", api_key="your-deepseek-api-key"):
-    client = OpenAI(api_key=api_key, base_url="https://az.gptplus5.com/v1")
+def execute_tool_chain(input_text, toolbox_functions, Instruction="You are a helpful multi-agent assistant that can answer questions about soccer."):
+    client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'), base_url=os.getenv('OPENAI_BASE_URL'))
     # Initialize the conversation history with the system instruction and user input
     conversation_history = [
         {"role": "system", "content": Instruction},
@@ -286,14 +286,17 @@ def execute_tool_chain(input_text, toolbox_functions, Instruction="You are a hel
     while True:
         # Generate a response from the model
         completion = client.chat.completions.create(
-            model="deepseek-chat",
+            model=API_MODEL,
             messages=conversation_history
         )
         # Get the model's reply
         model_reply = completion.choices[0].message.content
         conversation_history.append({"role": "assistant", "content": model_reply})
         total_process += model_reply
+        print(f'Total Process: {total_process}')
+
         tool, query, material = parse_call_response(model_reply)
+        print(f'Tool: {tool}, Query: {query}, Material: {material}')
         if tool != "LLM":
             material = ast.literal_eval(material) if material is not None else []
             user_execution = execute_tool_call(tool, query, material, toolbox_functions)
@@ -304,9 +307,9 @@ def execute_tool_chain(input_text, toolbox_functions, Instruction="You are a hel
             if tool == "LLM":
                 # Generate a prompt for the LLM to answer the question
                 llm_prompt = generate_LLM_prompt(query)
-                conversation_history.append({"role": "assistant", "content": llm_prompt})
+                conversation_history.append({"role": "user", "content": llm_prompt})
                 completion = client.chat.completions.create(
-                    model="deepseek-chat",
+                    model=API_MODEL,
                     messages=conversation_history
                 )
                 # Get the model's reply
@@ -317,7 +320,7 @@ def execute_tool_chain(input_text, toolbox_functions, Instruction="You are a hel
                 material = ast.literal_eval(material) if material is not None else []
                 user_execution = execute_tool_call(tool, query, material, toolbox_functions)
                 total_process += user_execution
-            
+
             return total_process
 
 ######################## Some Basic Prompt Information ########################
@@ -335,21 +338,21 @@ For each question, you will reveive:
 - You might also receive one or more video clip or image as context
 
 Your task involves three sequential parts:
-1. Problem Decomposition (Part 1) 
-    - Identify available information 
-    - Break down the question into sequential steps 
-2. Sequential Tool Application (Part 2) 
-    - Execute one tool at a time 
-    - Record each tool’s output 
-    - Continue until sufficient information is gathered 
-3. Solution Synthesis (Part 3) 
-    - Integrate all results 
+1. Problem Decomposition (Part 1)
+    - Identify available information
+    - Break down the question into sequential steps
+2. Sequential Tool Application (Part 2)
+    - Execute one tool at a time
+    - Record each tool’s output
+    - Continue until sufficient information is gathered
+3. Solution Synthesis (Part 3)
+    - Integrate all results
     - Generate final answer
 
 
 ## Available Tools
 
-For all the QA, you need to decompose them and 
+For all the QA, you need to decompose them and
 Here are the tools that you can use to answer the questions:
 {toolbox_descriptions}
 
@@ -362,8 +365,8 @@ Here are some common QA tasks that you might meet in the questions, for each typ
 To be noted, at this stage you only need to treat this question as open-ended QA task, you can use the common QA tasks as reference to decompose the question and identify the required tools.
 
 ## Response Format for Part 1
-For each query, you should respond ONLY with: 
-    Known Info: [list any categories explicitly mentioned in the query and material] 
+For each query, you should respond ONLY with:
+    Known Info: [list any categories explicitly mentioned in the query and material]
     Tool Chain: [list required tools connected by ->]
 
 ## Examples
